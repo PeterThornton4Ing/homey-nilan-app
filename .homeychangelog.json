@@ -10,5 +10,8 @@
   },
   "1.4.0": {
     "en": "Added ventilation and temperature Flow controls, manual CTS602 CO2/external-heat options, and configurable estimated power and energy monitoring. Fixed Flow filters, direct ventilation control, settings refresh and pairing reliability"
+  },
+  "1.4.1": {
+    "en": "Fixed sensor reading crash on CTS700"
   }
 }
