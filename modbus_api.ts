@@ -119,8 +119,9 @@ export class ModbusApi {
 
           if (result !== undefined) {
             const {metrics, response} = result;
-            return response.body.valuesAsArray && response.body.valuesAsArray.length > 0 && response.body.valuesAsBuffer
-              ? modifier(response.body.valuesAsBuffer.readInt16BE(0)) / (param.scale || 1) : undefined;
+            const body = response?.body || (response as any)?._body;
+            return body && body.valuesAsArray && body.valuesAsArray.length > 0 && body.valuesAsBuffer
+              ? modifier(body.valuesAsBuffer.readInt16BE(0)) / (param.scale || 1) : undefined;
           }
         } catch(error) {
           this.handleSocketError('Read', error);
@@ -134,26 +135,24 @@ export class ModbusApi {
     return this._commandQueue.add(async () => {
         const client = await this._connection();
         if (client) {
-          Promise.all(Array.from(params.keys()).map((key: string) => {
-
+          try {
+            const keys = Array.from(params.keys());
+            const results = await Promise.allSettled(keys.map((key: string) => {
               const param = params.get(key)!;
-              let value = undefined;
-
               if (param.type === Register.Type.Input) return client.readInputRegisters(param.addr, 1);
               else if (param.type === Register.Type.Holding) return client.readHoldingRegisters(param.addr, 1);
               else if (param.type === Register.Type.Coil) return client.readCoils(param.addr, 1);
               else if (param.type === Register.Type.Discrete) return client.readDiscreteInputs(param.addr, 1);
-              else return undefined; // We should never reach here
-            }))
-            .then((results) => {
-              const matched = this.matchResults(params, results);
-              if (this._onUpdateValues && this._device) {
-                this._onUpdateValues(matched, this._device);
-              }
-            })
-            .catch((error) => {
-              this.handleSocketError('Read', error);
-            });
+              else return Promise.reject(new Error(`Invalid register type for key: ${key}`));
+            }));
+
+            const matched = this.matchResults(params, results);
+            if (matched.size > 0 && this._onUpdateValues && this._device) {
+              await this._onUpdateValues(matched, this._device);
+            }
+          } catch (error) {
+            this.handleSocketError('Read', error);
+          }
         }
       }
     );
@@ -170,25 +169,48 @@ export class ModbusApi {
     return value;
   }
 
-  matchResults = (params: Register.Queries, results: any): Register.Results => {
+  matchResults = (params: Register.Queries, results: PromiseSettledResult<any>[]): Register.Results => {
 
     const matched: Register.Results = new Map();
+    const keys = Array.from(params.keys());
+    let hasSocketError = false;
 
-    let i = 0;
-    params.forEach((param, key) => {
+    keys.forEach((key, i) => {
+      const param = params.get(key)!;
+      const res = results[i];
 
-      const modifier = param.modifier_read !== undefined ? param.modifier_read : this.noModifier;
+      if (res.status === 'fulfilled' && res.value) {
+        try {
+          const {metrics, response} = res.value;
+          const body = response?.body || (response as any)?._body;
+          const modifier = param.modifier_read !== undefined ? param.modifier_read : this.noModifier;
 
-      const {metrics, response} = results[i];
-      const value = response._body.valuesAsArray && response._body.valuesAsArray.length > 0 && response._body.valuesAsBuffer
-        ? modifier(response._body.valuesAsBuffer.readInt16BE(0)) / (param.scale || 1) : undefined;
+          const value = body && body.valuesAsArray && body.valuesAsArray.length > 0 && body.valuesAsBuffer
+            ? modifier(body.valuesAsBuffer.readInt16BE(0)) / (param.scale || 1) : undefined;
 
-      this._logger('Addr:', param.addr, key, '=', value, '(transfer:', metrics.transferTime,'ms, cue:', metrics.waitTime, 'ms)');
-      if ( value !== undefined )
-        matched.set(key, value);
+          if (metrics) {
+            this._logger('Addr:', param.addr, key, '=', value, '(transfer:', metrics.transferTime,'ms, cue:', metrics.waitTime, 'ms)');
+          } else {
+            this._logger('Addr:', param.addr, key, '=', value);
+          }
 
-      i++;
-    })
+          if ( value !== undefined )
+            matched.set(key, value);
+        } catch (err) {
+          this._logger('Error parsing register result for key:', key, err);
+        }
+      } else if (res.status === 'rejected') {
+        const reason = res.reason;
+        this._logger('Addr:', param.addr, key, 'read failed:', reason?.message || reason);
+        if (reason && (reason.code === 'ECONNRESET' || reason.code === 'EPIPE' || reason.code === 'ECONNREFUSED' || (typeof reason.message === 'string' && (reason.message.includes('socket') || reason.message.includes('closed'))))) {
+          hasSocketError = true;
+        }
+      }
+    });
+
+    if (hasSocketError) {
+      this.handleSocketError('Read', 'Socket error encountered during register reads');
+    }
 
     return matched;
   }
@@ -225,14 +247,13 @@ export class ModbusApi {
 
               toVal = modifier(toVal);
 
-            client.writeMultipleRegisters(param.addr, [toVal])
-            .then((response) => {
+            try {
+              const response = await client.writeMultipleRegisters(param.addr, [toVal]);
               const {metrics} = response;
               this._logger('Write OK:', param.addr, name, '(transfer:', metrics.transferTime,'ms, cue:', metrics.waitTime,'ms)');
-            })
-            .catch((error) => {
+            } catch (error) {
               this.handleSocketError('Write', error);
-            });
+            }
         }
       }
     );
