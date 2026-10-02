@@ -1,0 +1,28 @@
+{
+  "type": "enum",
+  "uiComponent": "sensor",
+  "title": {
+    "en": "Bypass"
+  },
+  "desc": {
+    "en": "Heat exchanger bypass damper"
+  },
+  "values": [
+    {
+      "id": "0",
+      "title": {
+        "en": "Closed"
+      }
+    },
+    {
+      "id": "1",
+      "title": {
+        "en": "Open"
+      }
+    }
+  ],
+  "getable": true,
+  "setable": false,
+  "uiQuickAction": false,
+  "icon": "/assets/icons/air_exchange_mode.svg"
+}

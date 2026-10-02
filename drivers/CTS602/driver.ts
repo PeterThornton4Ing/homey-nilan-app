@@ -2,8 +2,12 @@ import Homey from 'homey';
 import PairSession from 'homey/lib/PairSession';
 import net from 'net';
 import {ID_REGISTERS, DEVICE_IDENTIFICATION_REGISTER, MachineTypes} from './constants';
+import {REGISTERS} from './registers';
 import {Register} from '../../types';
 import {ModbusApi} from '../../modbus_api';
+
+// CTS602 Light protocol starts at Bus.Version 20 (Light firmware 1.1.19).
+const LIGHT_MIN_BUS_VERSION = 20;
 
 module.exports = class CTS602Driver extends Homey.Driver {
 
@@ -34,6 +38,18 @@ module.exports = class CTS602Driver extends Homey.Driver {
     });
   }
 
+  /* CTS602 Light (e.g. Comfort CT series) reuses Control.Type codes with a different meaning, so it
+     is recognised by its protocol version and the missing compressor output register instead. */
+  async _isLight(api: ModbusApi): Promise<boolean> {
+    const busVersion = await api.readSingle('Bus.Version', ID_REGISTERS);
+    if (busVersion === undefined || busVersion < LIGHT_MIN_BUS_VERSION)
+      return false;
+
+    const compressor = await api.readSingle('Output.Compressor', REGISTERS);
+    this.log('Bus version', busVersion, 'compressor register', compressor === undefined ? 'not available' : 'available');
+    return compressor === undefined;
+  }
+
   onPair(session: PairSession): void {
 
     let devices: any[] = [];
@@ -57,9 +73,13 @@ module.exports = class CTS602Driver extends Homey.Driver {
       });
 
       let machineType: number | undefined;
+      let light = false;
       try {
         await api._connection(data.ipaddress, port, unitId);
-        machineType = await this._getMachineType(api);
+        light = await this._isLight(api);
+        machineType = light
+          ? await api.readSingle(DEVICE_IDENTIFICATION_REGISTER, ID_REGISTERS)
+          : await this._getMachineType(api);
       } finally {
         await api._disconnect();
       }
@@ -67,7 +87,10 @@ module.exports = class CTS602Driver extends Homey.Driver {
       if (machineType === undefined)
         throw new Error(this.homey.__('errors.identification_failed'));
 
-      this.log('Machine type', MachineTypes.get(machineType), 'with type code', machineType, 'found');
+      if (light)
+        this.log('CTS602 Light with type code', machineType, 'found');
+      else
+        this.log('Machine type', MachineTypes.get(machineType), 'with type code', machineType, 'found');
 
       const machineId = `${data.ipaddress}.${port}.${unitId}`;
       this.log('device id:', machineId);
@@ -76,10 +99,11 @@ module.exports = class CTS602Driver extends Homey.Driver {
       const hasCo2Sensor = data.co2sensor === true;
 
       devices = [{
-        name: MachineTypes.get(machineType),
+        name: light ? 'Nilan CTS602 Light' : MachineTypes.get(machineType),
         data: {
           id: machineId,
           model: machineType,
+          ...(light ? { profile: 'light' } : {}),
           externalHeater: hasExternalHeater,
           co2Sensor: hasCo2Sensor
         },

@@ -1,0 +1,58 @@
+{
+  "type": "enum",
+  "uiComponent": "sensor",
+  "title": {
+    "en": "Ventilation state"
+  },
+  "desc": {
+    "en": "Reason for the current ventilation level"
+  },
+  "values": [
+    {
+      "id": "0",
+      "title": {
+        "en": "Off"
+      }
+    },
+    {
+      "id": "1",
+      "title": {
+        "en": "Normal"
+      }
+    },
+    {
+      "id": "2",
+      "title": {
+        "en": "Low humidity"
+      }
+    },
+    {
+      "id": "3",
+      "title": {
+        "en": "High humidity"
+      }
+    },
+    {
+      "id": "4",
+      "title": {
+        "en": "High CO2"
+      }
+    },
+    {
+      "id": "5",
+      "title": {
+        "en": "Low room temperature"
+      }
+    },
+    {
+      "id": "6",
+      "title": {
+        "en": "Low outdoor temperature"
+      }
+    }
+  ],
+  "getable": true,
+  "setable": false,
+  "uiQuickAction": false,
+  "icon": "/assets/icons/fan_speed.svg"
+}

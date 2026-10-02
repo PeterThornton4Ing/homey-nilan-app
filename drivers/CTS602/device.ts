@@ -1,9 +1,9 @@
 import Homey from 'homey';
 import net from 'net';
 import { Register, ValueType, CapacityMapping, CapacityMap, UpdateMapping, UpdateMap, Fetch, limitValueRange } from '../../types';
-import { ID_REGISTERS, OPERATION_REGISTERS, SENSOR_REGISTERS, ALARM_REGISTERS, CAPABILITIES, newUpdateMap } from './constants';
+import { ID_REGISTERS, OPERATION_REGISTERS, SENSOR_REGISTERS, ALARM_REGISTERS, CAPABILITIES, HEATPUMP_ONLY_REGISTERS, LIGHT_UNSUPPORTED_REGISTERS, LIGHT_SENSOR_REGISTERS, newUpdateMap, withoutRegisters } from './constants';
 import { ModbusApi } from '../../modbus_api';
-import { DeviceCapabilities, getDeviceCapabilities, DeviceFeatures, hasFwCaps, capIsFwRelated, capIsInsightsNumber, capIsAlarmRelated } from './capabilities';
+import { DeviceCapabilities, getDeviceCapabilities, DeviceFeatures, hasFwCaps, capIsFwRelated, capIsInsightsNumber, capIsAlarmRelated, getDeviceProfile, getExcludedCapabilities } from './capabilities';
 
 const ENERGY_PERSIST_INTERVAL_MS = 5 * 60 * 1000;
 const EK_RETURN_CONFIRMATION_READS = 3;
@@ -87,10 +87,35 @@ module.exports = class CTS602Device extends Homey.Device {
         || data.co2sensor === true
         || settings['co2-sensor-installed'] === true
     };
-    const capIds = getDeviceCapabilities(data.model ?? -1, features);
+    const profile = getDeviceProfile(data);
+    const capIds = getDeviceCapabilities(data.model ?? -1, features, profile);
 
     this.log('data:', data);
     this.log('installed features:', features);
+
+    if (profile !== 'heatpump') {
+      this.log(profile, 'unit, skipping unsupported registers and capabilities');
+
+      const unsupported = profile === 'light' ? LIGHT_UNSUPPORTED_REGISTERS : HEATPUMP_ONLY_REGISTERS;
+      for (const fetch of this.fetches)
+        fetch.queries = withoutRegisters(fetch.queries, unsupported);
+
+      if (profile === 'light') {
+        const sensors = this.fetches.find(fetch => fetch.queries.has('Input.T3_Exhaust'));
+        if (sensors) sensors.queries = new Map([...sensors.queries, ...LIGHT_SENSOR_REGISTERS]);
+      }
+
+      if (this.getClass() !== 'airtreatment')
+        await this.setClass('airtreatment');
+
+      // Devices paired before the ventilation profile existed received the heat pump capabilities.
+      for (const capId of getExcludedCapabilities(profile)) {
+        if (!capIds.includes(capId) && this.hasCapability(capId)) {
+          await this.removeCapability(capId);
+          this.log('Removed heat pump capability', capId, 'from ventilation unit');
+        }
+      }
+    }
 
     let curIds = await this.getCapabilities();
     let didAddAlarms: Boolean = false;
@@ -476,6 +501,9 @@ module.exports = class CTS602Device extends Homey.Device {
 
     if (result.has('Output.Defrosting'))
       await device.setCapabilityValue2('insights_number.defrosting_state', result.get('Output.Defrosting') === 0 ? 0 : 1);
+
+    if (result.has('AirBypass.IsOpen'))
+      await device.setCapabilityValue2('insights_number.bypass_state', result.get('AirBypass.IsOpen') === 0 ? 0 : 1);
 
     if (result.has('Output.CenHeatExt'))
       await device.setCapabilityValue2('insights_number.externalheater', result.get('Output.CenHeatExt') === 0 ? 0 : 1);

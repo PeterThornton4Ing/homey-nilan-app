@@ -79,6 +79,51 @@ export const SENSOR_REGISTERS: Register.Queries = Register.filter(REGISTERS, [
   'AirFlow.ToFiltDay',
 ]);
 
+/* Registers that only exist on heat pump plants; not polled on ventilation-only units. */
+export const HEATPUMP_ONLY_REGISTERS: Array<string> = [
+  'HotWater.TempSet_T11',
+  'HotWater.TempSet_T12',
+  'CentralHeat.TempSet',
+  'AirFlow.AirExchMode',
+  'Input.T5_Cond',
+  'Input.T6_Evap',
+  'Input.T11_Top',
+  'Input.T12_Bottom',
+  'Input.T13_Return',
+  'Input.T14_Supply',
+  'Input.T16',
+  'Output.Compressor',
+  'Output.WaterHeatEl',
+  'Output.WaterHeat',
+  'Output.CenCircPump',
+  'Output.CenHeat_1',
+  'Output.CenHeat_2',
+  'Output.CenHeat_3',
+  'Output.CenHeatCap',
+  'Output.CprCap',
+];
+
+/* Registers CTS602 Light does not implement, on top of the heat pump registers. */
+export const LIGHT_UNSUPPORTED_REGISTERS: Array<string> = [
+  ...HEATPUMP_ONLY_REGISTERS,
+  'Input.T1_Intake',
+  'Input.T2_Inlet',
+  'Input.T9_Heater',
+  'Input.T10_Extern',
+  'Input.T15_Room',
+  'Output.CenHeatExt',
+  'Output.Defrosting',
+];
+
+export const LIGHT_SENSOR_REGISTERS: Register.Queries = Register.filter(REGISTERS, [
+  'AirBypass.IsOpen',
+  'AirFlow.VentState',
+]);
+
+export const withoutRegisters =((queries: Register.Queries, keys: Array<string>): Register.Queries => {
+  return new Map([...queries].filter(([key]) => !keys.includes(key)));
+});
+
 export const ALARM_REGISTERS: Register.Queries = Register.filter(REGISTERS, [
   'Alarm.Status',
   'Alarm.List_1_ID',
@@ -103,6 +148,14 @@ export const CAPABILITIES: CapacityMap = new Map([
   [ 'Output.Defrosting', {
     name: 'defrosting_state',
     type: ValueType.Bool,
+  }],
+  [ 'AirBypass.IsOpen', {
+    name: 'bypass_state',
+    type: ValueType.State,
+  }],
+  [ 'AirFlow.VentState', {
+    name: 'ventilation_state',
+    type: ValueType.State,
   }],
   [ 'AirTemp.TempRoom', {
     name: [ 'measure_temperature', 'measure_temperature.indoor' ],

@@ -27,6 +27,22 @@ The ventilation step can also be changed directly from the device UI. Capabiliti
 controls vary by Nilan model and installed options. CTS700 support currently focuses on
 monitoring the Modbus values exposed by that controller.
 
+Ventilation-only units get a ventilation profile: they are added as an air treatment
+device, and compressor, hot-water, central-heating (EK) and air-exchange-mode
+capabilities and Flow actions are left out. The registers for those functions are not
+polled on these units. This applies to:
+
+- **CTS602 Light** controllers, such as the Nilan Comfort CT series (e.g. CT500). Light
+  firmware is detected during pairing from its Modbus protocol version (Bus.Version 20 or
+  newer) and the missing compressor register, because Light reuses the CTS602 type codes
+  with a different meaning (a CT500 reports the code of "VPL 15"). Light devices only get
+  the sensors the Light register map provides (T0, T3, T4, T7, T8, humidity and optional
+  CO₂) plus a bypass damper state and the ventilation state (normal, humidity, CO₂ or
+  temperature controlled). Devices paired before Light detection existed must be removed
+  and paired again.
+- Full CTS602 Comfort units (type codes COMFORT, COMFORT2, COMFORTi and Comfort N).
+  Existing Comfort devices drop the unused capabilities on the next app start.
+
 Connection settings can be changed from the device settings. Polling and temperature
 report intervals are in seconds; avoid unnecessarily short intervals to keep Modbus
 traffic moderate.

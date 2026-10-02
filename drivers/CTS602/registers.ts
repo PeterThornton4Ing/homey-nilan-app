@@ -301,6 +301,20 @@ export const REGISTERS: Register.Queries = new Map([
     min: 0,
     max: 10000,
   }],
+  [ 'AirBypass.IsOpen', {
+    addr: 3000,
+    type: Register.Type.Input,
+    description: 'Bypass damper (CTS602 Light), 0 = closed, 1 = open',
+    min: 0,
+    max: 1,
+  }],
+  [ 'AirFlow.VentState', {
+    addr: 3102,
+    type: Register.Type.Input,
+    description: 'Ventilation state (CTS602 Light)',
+    min: 0,
+    max: 6,
+  }],
   [ 'AirQual.CO2_Enable', { // Not known if works..
     addr: 3003,
     type: Register.Type.Input,
