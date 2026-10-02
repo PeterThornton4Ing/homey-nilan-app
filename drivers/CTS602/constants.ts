@@ -74,6 +74,7 @@ export const SENSOR_REGISTERS: Register.Queries = Register.filter(REGISTERS, [
   'Output.CprCap',
   'AirFlow.VentSet',
   'AirFlow.InletAct',
+  'AirFlow.ExhaustAct',
   'AirFlow.SinceFiltDay',
   'AirFlow.ToFiltDay',
 ]);
@@ -120,7 +121,7 @@ export const CAPABILITIES: CapacityMap = new Map([
     type: ValueType.Number,
   }],
   [ 'Input.T3_Exhaust', {
-    name: [ 'measure_temperature.exhaust', 'inisights_dec_number.T3_exhaust' ],
+    name: [ 'measure_temperature.exhaust', 'insights_dec_number.T3_exhaust' ],
     type: ValueType.Number,
   }],
   [ 'Input.T4_Outlet', {
@@ -419,25 +420,25 @@ export const newUpdateMap = ((): UpdateMap => {
       factor: 100,
     }],
     [ 'fan_speed.exhaust1', {
-      id: 'AirFlow.ExaustSpd_1',
+      id: 'AirFlow.ExhaustSpd_1',
       description: 'Exhaust step 1 speed setup',
       queries: OPERATION_REGISTERS,
       factor: 100,
     }],
     [ 'fan_speed.exhaust2', {
-      id: 'AirFlow.ExaustSpd_2',
+      id: 'AirFlow.ExhaustSpd_2',
       description: 'Exhaust step 2 speed setup',
       queries: OPERATION_REGISTERS,
       factor: 100,
     }],
     [ 'fan_speed.exhaust3', {
-      id: 'AirFlow.ExaustSpd_3',
+      id: 'AirFlow.ExhaustSpd_3',
       description: 'Exhaust step 3 speed setup',
       queries: OPERATION_REGISTERS,
       factor: 100,
     }],
     [ 'fan_speed.exhaust4', {
-      id: 'AirFlow.ExaustSpd_4',
+      id: 'AirFlow.ExhaustSpd_4',
       description: 'Exhaust step 4 speed setup',
       queries: OPERATION_REGISTERS,
       factor: 100,
