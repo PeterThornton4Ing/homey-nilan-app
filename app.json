@@ -1215,6 +1215,21 @@
           "max": 7,
           "step": 1
         },
+        "insights_number.bypass_state": {
+          "title": {
+            "en": "Bypass"
+          },
+          "units": {
+            "en": "State"
+          },
+          "hint": {
+            "en": "0 = closed, 1 = open"
+          },
+          "decimals": 0,
+          "min": 0,
+          "max": 1,
+          "step": 1
+        },
         "insights_number.run_state": {
           "title": {
             "en": "Run"
@@ -2581,6 +2596,34 @@
       "uiComponent": "sensor",
       "icon": "/assets/icons/hashtag.svg"
     },
+    "bypass_state": {
+      "type": "enum",
+      "uiComponent": "sensor",
+      "title": {
+        "en": "Bypass"
+      },
+      "desc": {
+        "en": "Heat exchanger bypass damper"
+      },
+      "values": [
+        {
+          "id": "0",
+          "title": {
+            "en": "Closed"
+          }
+        },
+        {
+          "id": "1",
+          "title": {
+            "en": "Open"
+          }
+        }
+      ],
+      "getable": true,
+      "setable": false,
+      "uiQuickAction": false,
+      "icon": "/assets/icons/air_exchange_mode.svg"
+    },
     "capacity": {
       "type": "number",
       "title": {
@@ -3553,6 +3596,64 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor"
+    },
+    "ventilation_state": {
+      "type": "enum",
+      "uiComponent": "sensor",
+      "title": {
+        "en": "Ventilation state"
+      },
+      "desc": {
+        "en": "Reason for the current ventilation level"
+      },
+      "values": [
+        {
+          "id": "0",
+          "title": {
+            "en": "Off"
+          }
+        },
+        {
+          "id": "1",
+          "title": {
+            "en": "Normal"
+          }
+        },
+        {
+          "id": "2",
+          "title": {
+            "en": "Low humidity"
+          }
+        },
+        {
+          "id": "3",
+          "title": {
+            "en": "High humidity"
+          }
+        },
+        {
+          "id": "4",
+          "title": {
+            "en": "High CO2"
+          }
+        },
+        {
+          "id": "5",
+          "title": {
+            "en": "Low room temperature"
+          }
+        },
+        {
+          "id": "6",
+          "title": {
+            "en": "Low outdoor temperature"
+          }
+        }
+      ],
+      "getable": true,
+      "setable": false,
+      "uiQuickAction": false,
+      "icon": "/assets/icons/fan_speed.svg"
     },
     "waterpump_state": {
       "type": "enum",
