@@ -5,6 +5,10 @@ import { Register } from './types';
 
 const {default: PQueue} = require('p-queue');
 
+const CONNECT_TIMEOUT_MS = 10 * 1000;
+// Upper bound for one queued read/write batch, so a stuck command can never block the queue for good.
+const COMMAND_TIMEOUT_MS = 60 * 1000;
+
 export interface ModbusApiOptions {
   device?: Device;
   homey: any;
@@ -28,7 +32,7 @@ export class ModbusApi {
     this._homey = options.homey;
     this._logger = options.logger;
     this._onUpdateValues = options.onUpdateValues;
-    this._commandQueue = new PQueue({concurrency: 1});
+    this._commandQueue = new PQueue({concurrency: 1, timeout: COMMAND_TIMEOUT_MS, throwOnTimeout: false});
     this._errorCounter = 0;
   }
 
@@ -44,28 +48,47 @@ export class ModbusApi {
         resolve(this._client);
       } else {
         const self = this;
-        this._socket = new net.Socket();
-        this._client = new ModbusTCPClient(this._socket, this._device ? Number(this._device.getSetting('device-id')) : Number(unitId), 5000);
-        this._socket.on('ready', () => {
+        const socket = new net.Socket();
+        this._socket = socket;
+        this._client = new ModbusTCPClient(socket, this._device ? Number(this._device.getSetting('device-id')) : Number(unitId), 5000);
+
+        // The promise must always settle: a pending connection blocks the command queue and stops polling.
+        let settled = false;
+        const settle = (done: () => void) => {
+          if (settled) return;
+          settled = true;
+          self._homey.clearTimeout(connectTimeout);
+          done();
+        };
+        const connectTimeout = self._homey.setTimeout(() => {
+          self._logger('Socket connect timed out');
+          socket.destroy();
+          settle(() => reject('connect timeout'));
+        }, CONNECT_TIMEOUT_MS);
+
+        socket.on('ready', () => {
           // self._logger('Socket ready');
           self._addSocketTimeout();
-          resolve(this._client);
+          settle(() => resolve(this._client));
         }).on('close', () => {
           // self._logger('Socket closed');
-          self._clearSocketTimeout();
-          self._socket = undefined;
-          self._client = undefined;
+          if (self._socket === socket) {
+            self._clearSocketTimeout();
+            self._socket = undefined;
+            self._client = undefined;
+          }
+          settle(() => reject('connection closed'));
         }).on('error', (error: any) => {
           self._logger('Socket error', error);
           if (error.code === "ECONNREFUSED") {
             const uri = `${error.address}:${error.port}`;
-            reject(new Error(self._homey.__('pair.connection_refused', {uri})));
+            settle(() => reject(new Error(self._homey.__('pair.connection_refused', {uri}))));
           } else if (error.code === "EHOSTUNREACH") {
             const uri = `${error.address}:${error.port}`;
-            reject(new Error(self._homey.__('pair.connection_unreachable', {uri})));
+            settle(() => reject(new Error(self._homey.__('pair.connection_unreachable', {uri}))));
           }
           self._socket?.end();
-          reject('connect error');
+          settle(() => reject('connect error'));
         });
         this._socket.connect({
           host: this._device ? this._device.getSetting('device-ip') : ipAddress,
