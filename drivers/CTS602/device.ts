@@ -184,12 +184,17 @@ module.exports = class CTS602Device extends Homey.Device {
     }
 
     this.updates.forEach((item, key) => {
-      const capabilityId = item.capability || key;
+      if (!item.queries.has(item.id)) return;
 
-      if (item.queries.has(item.id) && this.capIds.includes(capabilityId)) {
-        this.registerCapabilityListener(capabilityId, (value, opts) => {
-          return this.updateValue(key, value, opts);
-        });
+      // Both the control itself (e.g. fan_mode.ventilation) and its mirror capability
+      // (e.g. fanstep_enum.ventilation) are setable and write the same register.
+      const capabilityIds = item.capability !== undefined ? [ key, item.capability ] : [ key ];
+      for (const capabilityId of capabilityIds) {
+        if (this.capIds.includes(capabilityId)) {
+          this.registerCapabilityListener(capabilityId, (value, opts) => {
+            return this.updateValue(key, value, opts);
+          });
+        }
       }
     });
 
